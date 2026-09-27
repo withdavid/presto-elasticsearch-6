@@ -13,10 +13,10 @@
  */
 package com.facebook.presto.elasticsearch.decoders;
 
+import co.elastic.clients.elasticsearch.core.search.Hit;
 import com.facebook.presto.common.block.BlockBuilder;
 import com.facebook.presto.spi.PrestoException;
 import io.airlift.slice.Slices;
-import org.elasticsearch.search.SearchHit;
 
 import java.util.function.Supplier;
 
@@ -36,17 +36,17 @@ public class VarcharDecoder
     }
 
     @Override
-    public void decode(SearchHit hit, Supplier<Object> getter, BlockBuilder output)
+    public void decode(Hit hit, Supplier<Object> getter, BlockBuilder output)
     {
         Object value = getter.get();
         if (value == null) {
             output.appendNull();
         }
-        else if (value instanceof String || value instanceof Number) {
+        else if (value instanceof String || value instanceof Number || value instanceof Boolean) {
             VARCHAR.writeSlice(output, Slices.utf8Slice(value.toString()));
         }
         else {
-            throw new PrestoException(ELASTICSEARCH_TYPE_MISMATCH, format("Expected a string or numeric value for field '%s' of type VARCHAR: %s [%s]", path, value, value.getClass().getSimpleName()));
+            throw new PrestoException(ELASTICSEARCH_TYPE_MISMATCH, format("Expected a string, numeric or boolean value for field '%s' of type VARCHAR: %s [%s]", path, value, value.getClass().getSimpleName()));
         }
     }
 }

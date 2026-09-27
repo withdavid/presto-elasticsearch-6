@@ -13,9 +13,9 @@
  */
 package com.facebook.presto.elasticsearch.decoders;
 
+import co.elastic.clients.elasticsearch.core.search.Hit;
 import com.facebook.presto.common.block.BlockBuilder;
 import com.facebook.presto.spi.PrestoException;
-import org.elasticsearch.search.SearchHit;
 
 import java.util.function.Supplier;
 
@@ -35,7 +35,7 @@ public class SmallintDecoder
     }
 
     @Override
-    public void decode(SearchHit hit, Supplier<Object> getter, BlockBuilder output)
+    public void decode(Hit hit, Supplier<Object> getter, BlockBuilder output)
     {
         Object value = getter.get();
         if (value == null) {
@@ -49,6 +49,19 @@ public class SmallintDecoder
             }
 
             SMALLINT.writeLong(output, decoded);
+        }
+        else if (value instanceof String) {
+            String string = (String) value;
+            if (string.isEmpty()) {
+                output.appendNull();
+                return;
+            }
+            try {
+                SMALLINT.writeLong(output, Short.parseShort(string));
+            }
+            catch (NumberFormatException e) {
+                throw new PrestoException(ELASTICSEARCH_TYPE_MISMATCH, format("Cannot parse value for field '%s' as SMALLINT: %s", path, value), e);
+            }
         }
         else {
             throw new PrestoException(ELASTICSEARCH_TYPE_MISMATCH, format("Expected a numeric value for field '%s' of type SMALLINT: %s [%s]", path, value, value.getClass().getSimpleName()));

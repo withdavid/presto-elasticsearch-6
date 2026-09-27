@@ -13,9 +13,9 @@
  */
 package com.facebook.presto.elasticsearch.decoders;
 
+import co.elastic.clients.elasticsearch.core.search.Hit;
 import com.facebook.presto.common.block.BlockBuilder;
 import com.facebook.presto.spi.PrestoException;
-import org.elasticsearch.search.SearchHit;
 
 import java.util.function.Supplier;
 
@@ -36,7 +36,7 @@ public class IntegerDecoder
     }
 
     @Override
-    public void decode(SearchHit hit, Supplier<Object> getter, BlockBuilder output)
+    public void decode(Hit hit, Supplier<Object> getter, BlockBuilder output)
     {
         Object value = getter.get();
         if (value == null) {
@@ -44,6 +44,19 @@ public class IntegerDecoder
         }
         else if (value instanceof Number) {
             INTEGER.writeLong(output, toIntExact(((Number) value).longValue()));
+        }
+        else if (value instanceof String) {
+            String string = (String) value;
+            if (string.isEmpty()) {
+                output.appendNull();
+                return;
+            }
+            try {
+                INTEGER.writeLong(output, Integer.parseInt(string));
+            }
+            catch (NumberFormatException e) {
+                throw new PrestoException(ELASTICSEARCH_TYPE_MISMATCH, format("Cannot parse value for field '%s' as INTEGER: %s", path, value), e);
+            }
         }
         else {
             throw new PrestoException(ELASTICSEARCH_TYPE_MISMATCH, format("Expected a numeric value for field '%s' of type INTEGER: %s [%s]", path, value, value.getClass().getSimpleName()));
